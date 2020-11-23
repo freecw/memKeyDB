@@ -210,8 +210,14 @@ static void zfree_pmem(void *ptr) {
 #endif
 }
 
+memkind_t pmem_kind = NULL;
+void set_pmem_kind(void) {
+    memkind_create_pmem("/mnt/cwtest/", 0, &pmem_kind);
+}
+
 static void *zmalloc_pmem(size_t size) {
-    void *ptr = memkind_malloc(MEMKIND_DAX_KMEM, size+PREFIX_SIZE);
+    //void *ptr = memkind_malloc(MEMKIND_DAX_KMEM, size+PREFIX_SIZE);
+    void ptr = memkind_malloc(pmem_kind, size+PREFIX_SIZE);
     if (!ptr && errno==ENOMEM) zmalloc_oom_handler(size);
 #ifdef HAVE_MALLOC_SIZE
     update_zmalloc_pmem_stat_alloc(zmalloc_size(ptr));
@@ -224,8 +230,8 @@ static void *zmalloc_pmem(size_t size) {
 }
 
 static void *zcalloc_pmem(size_t size) {
-    void *ptr = memkind_calloc(MEMKIND_DAX_KMEM, 1, size+PREFIX_SIZE);
-
+    //void *ptr = memkind_calloc(MEMKIND_DAX_KMEM, 1, size+PREFIX_SIZE);
+    void ptr = memkind_calloc(pmem_kind, 1, size+PREFIX_SIZE);
     if (!ptr && errno==ENOMEM) zmalloc_oom_handler(size);
 #ifdef HAVE_MALLOC_SIZE
     update_zmalloc_pmem_stat_alloc(zmalloc_size(ptr));
@@ -251,7 +257,8 @@ static void *zrealloc_pmem(void *ptr, size_t size) {
     if (ptr == NULL) return zmalloc(size);
 #ifdef HAVE_MALLOC_SIZE
     oldsize = zmalloc_size(ptr);
-    newptr = realloc_pmem(ptr,size);
+    //newptr = realloc_pmem(ptr,size);
+    newptr = memkind_realloc(pmem_kind,ptr,size);
     if (!newptr) zmalloc_oom_handler(size);
 
     update_zmalloc_pmem_stat_free(oldsize);
@@ -260,7 +267,8 @@ static void *zrealloc_pmem(void *ptr, size_t size) {
 #else
     realptr = (char*)ptr-PREFIX_SIZE;
     oldsize = *((size_t*)realptr);
-    newptr = realloc_pmem(realptr,size+PREFIX_SIZE);
+    //newptr = realloc_pmem(realptr,size+PREFIX_SIZE);
+    newptr = memkind_realloc(pmem_kind,realptr,size);
     if (!newptr) zmalloc_oom_handler(size);
 
     *((size_t*)newptr) = size;
